@@ -10,13 +10,36 @@ import (
 	"encoding/json"
 )
 
+const authenticateUser = `-- name: AuthenticateUser :one
+UPDATE users SET session = $1, last_login_at = now() WHERE email = $2 RETURNING id, email, session, credentials, verified, last_login_at
+`
+
+type AuthenticateUserParams struct {
+	Session json.RawMessage
+	Email   string
+}
+
+func (q *Queries) AuthenticateUser(ctx context.Context, arg AuthenticateUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, authenticateUser, arg.Session, arg.Email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Session,
+		&i.Credentials,
+		&i.Verified,
+		&i.LastLoginAt,
+	)
+	return i, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (
   id, email, session
 ) VALUES (
   $1, $2, $3
 )
-RETURNING id, email, session, credentials, verified
+RETURNING id, email, session, credentials, verified, last_login_at
 `
 
 type CreateUserParams struct {
@@ -34,12 +57,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Session,
 		&i.Credentials,
 		&i.Verified,
+		&i.LastLoginAt,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, session, credentials, verified FROM users WHERE email = $1
+SELECT id, email, session, credentials, verified, last_login_at FROM users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -51,12 +75,13 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Session,
 		&i.Credentials,
 		&i.Verified,
+		&i.LastLoginAt,
 	)
 	return i, err
 }
 
 const verifyUser = `-- name: VerifyUser :one
-UPDATE users SET verified = true, credentials = $1 WHERE email = $2 RETURNING id, email, session, credentials, verified
+UPDATE users SET verified = true, credentials = $1 WHERE email = $2 RETURNING id, email, session, credentials, verified, last_login_at
 `
 
 type VerifyUserParams struct {
@@ -73,6 +98,7 @@ func (q *Queries) VerifyUser(ctx context.Context, arg VerifyUserParams) (User, e
 		&i.Session,
 		&i.Credentials,
 		&i.Verified,
+		&i.LastLoginAt,
 	)
 	return i, err
 }

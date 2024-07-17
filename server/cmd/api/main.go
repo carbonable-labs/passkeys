@@ -60,7 +60,7 @@ func main() {
 		return c.JSON(http.StatusOK, res)
 	})
 	account.POST("/register/:email", func(c echo.Context) error {
-		req := domain.RegisterRequest{Email: c.Param("email")}
+		req := domain.RegisterRequest{Email: c.QueryParam("email")}
 		res, err := domain.HandleRegister(c.Request().Context(), authManager, req, c.Request())
 		if err != nil {
 			return err
@@ -75,7 +75,7 @@ func main() {
 		if err != nil {
 			return fmt.Errorf("failed to bind request: %w", err)
 		}
-		res, err := domain.HandleLoginRequest(c.Request().Context(), req)
+		res, err := domain.HandleLoginRequest(c.Request().Context(), authManager, req)
 		if err != nil {
 			return err
 		}
@@ -83,12 +83,8 @@ func main() {
 		return c.JSON(http.StatusOK, res)
 	})
 	account.POST("/login", func(c echo.Context) error {
-		var req domain.LoginRequest
-		err := c.Bind(&req)
-		if err != nil {
-			return fmt.Errorf("failed to bind request: %w", err)
-		}
-		res, err := domain.HandleLogin(c.Request().Context(), req)
+		req := domain.LoginRequest{Email: c.QueryParam("email")}
+		res, err := domain.HandleLogin(c.Request().Context(), authManager, req, c.Request())
 		if err != nil {
 			return err
 		}

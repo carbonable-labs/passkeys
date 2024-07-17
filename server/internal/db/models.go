@@ -6,6 +6,8 @@ package db
 
 import (
 	"encoding/json"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type User struct {
@@ -14,4 +16,5 @@ type User struct {
 	Session     json.RawMessage
 	Credentials json.RawMessage
 	Verified    bool
+	LastLoginAt pgtype.Timestamp
 }

@@ -1,15 +1,14 @@
 "use client";
 import { useCallback, useState } from "react";
 import { Button } from "../components/Button";
-import { getOptionsForUser, registerUser } from "../actions/register";
-import { startRegistration } from "@simplewebauthn/browser";
+import { getOptionsForUser, registerUser, loginUser, getLoginOptionsForUser } from "../actions";
+import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
 
 export default function Home() {
   const [email, setEmail] = useState("");
 
   const handleRegister = useCallback(async () => {
     try {
-
       const opts = await getOptionsForUser(email);
       const credentials = await startRegistration(opts);
       try {
@@ -25,7 +24,21 @@ export default function Home() {
   }, [email, setEmail]);
 
   const handleLogin = useCallback(async () => {
-  }, []);
+    try {
+      const opts = await getLoginOptionsForUser(email);
+      const credentials = await startAuthentication(opts);
+      try {
+        const auth = await loginUser(email, credentials);
+        setEmail("")
+
+        console.log(auth)
+
+      } catch (e) {
+
+      }
+    } catch (e) { }
+
+  }, [email, setEmail]);
 
   const handleInputChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value)
