@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/carbonable-labs/account/internal/db"
 	"github.com/carbonable-labs/account/internal/domain"
@@ -13,13 +14,15 @@ import (
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 func main() {
+	rpOrigins := strings.Split(os.Getenv("RELYING_PARTY_ORIGINS"), ",")
 	wconfig := &webauthn.Config{
-		RPDisplayName: "Carbonable",                                                        // Display Name for your site
-		RPID:          "carbonable.io",                                                     // Generally the FQDN for your site
-		RPOrigins:     []string{"https://www.carbonable.io", "https://auth.carbonable.io"}, // The origin URLs allowed for WebAuthn requests
+		RPDisplayName: os.Getenv("RELYING_PARTY_NAME"), // Display Name for your site
+		RPID:          os.Getenv("RELYING_PARTY_ID"),   // Generally the FQDN for your site
+		RPOrigins:     rpOrigins,                       // The origin URLs allowed for WebAuthn requests
 	}
 
 	webAuthn, err := webauthn.New(wconfig)
@@ -37,6 +40,10 @@ func main() {
 	authManager := infrastructure.NewWebAuthnManager(webAuthn, dbClient)
 
 	e := echo.New()
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+	e.Use(middleware.CORS())
+
 	account := e.Group("/account")
 
 	account.POST("/register-request", func(c echo.Context) error {
@@ -52,13 +59,9 @@ func main() {
 
 		return c.JSON(http.StatusOK, res)
 	})
-	account.POST("/register", func(c echo.Context) error {
-		var req domain.RegisterRequest
-		err := c.Bind(&req)
-		if err != nil {
-			return fmt.Errorf("failed to bind request: %w", err)
-		}
-		res, err := domain.HandleRegister(c.Request().Context(), req)
+	account.POST("/register/:email", func(c echo.Context) error {
+		req := domain.RegisterRequest{Email: c.Param("email")}
+		res, err := domain.HandleRegister(c.Request().Context(), authManager, req, c.Request())
 		if err != nil {
 			return err
 		}

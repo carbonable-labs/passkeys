@@ -9,7 +9,9 @@ import (
 )
 
 type User struct {
-	ID      string
-	Email   string
-	Session json.RawMessage
+	ID          string
+	Email       string
+	Session     json.RawMessage
+	Credentials json.RawMessage
+	Verified    bool
 }

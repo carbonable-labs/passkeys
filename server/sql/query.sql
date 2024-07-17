@@ -7,3 +7,7 @@ INSERT INTO users (
 RETURNING *;
 
 -- name: GetUserByEmail :one
+SELECT * FROM users WHERE email = $1;
+
+-- name: VerifyUser :one
+UPDATE users SET verified = true, credentials = $1 WHERE email = $2 RETURNING *;

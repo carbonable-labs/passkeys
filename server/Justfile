@@ -13,7 +13,7 @@ stop_db:
 
 # run api
 api:
-    DATABASE_URL={{db_url}} go run cmd/api/main.go
+    RELYING_PARTY_ID=localhost RELYING_PARTY_NAME=Carbonable RELYING_PARTY_ORIGINS=http://localhost,http://localhost:3000 DATABASE_URL={{db_url}} go run cmd/api/main.go
 
 # run handlers
 handlers:

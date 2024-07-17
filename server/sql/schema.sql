@@ -1,5 +1,8 @@
 CREATE TABLE IF NOT EXISTS users (
   id VARCHAR(255) PRIMARY KEY,
   email VARCHAR(255) NOT NULL,
-  session JSONB NOT NULL DEFAULT '{}'
+  session JSONB NOT NULL DEFAULT '{}',
+  credentials JSONB NOT NULL DEFAULT '[]',
+  verified BOOLEAN NOT NULL DEFAULT FALSE
 );
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx ON users (email);
