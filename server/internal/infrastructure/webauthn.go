@@ -90,31 +90,32 @@ func (m *WebAuthnManager) BeginRegistration(ctx context.Context, req domain.Regi
 }
 
 func (m *WebAuthnManager) FinishRegistration(ctx context.Context, req domain.RegisterRequest, httpReq *http.Request) (domain.RegisterResponse, error) {
+	regRes := &domain.RegisterResponse{}
 	user, err := m.db.GetUserByEmail(ctx, req.Email)
 	if err != nil {
-		return domain.RegisterResponse{}, fmt.Errorf("failed to get user: %w", err)
+		return *regRes, fmt.Errorf("failed to get user: %w", err)
 	}
 
 	wu := WebAuthnUserFromDb(user)
 	creds, err := m.a.FinishRegistration(wu, *wu.session, httpReq)
 	if err != nil {
-		return domain.RegisterResponse{}, fmt.Errorf("failed to finish registration: %w", err)
+		return *regRes, fmt.Errorf("failed to finish registration: %w", err)
 	}
 	wu.AddCredential(*creds)
 
 	by, err := json.Marshal(creds)
 	if err != nil {
-		return domain.RegisterResponse{}, fmt.Errorf("failed to marshal credentials data : %w", err)
+		return *regRes, fmt.Errorf("failed to marshal credentials data : %w", err)
 	}
 	_, err = m.db.VerifyUser(ctx, db.VerifyUserParams{
 		Credentials: json.RawMessage(by),
 		Email:       wu.user.Email,
 	})
 	if err != nil {
-		return domain.RegisterResponse{}, fmt.Errorf("failed to save user credentials : %w", err)
+		return *regRes, fmt.Errorf("failed to save user credentials : %w", err)
 	}
 
-	return domain.RegisterResponse{}, nil
+	return *regRes.WithUserID(wu.user.Id), nil
 }
 
 func (m *WebAuthnManager) BeginLogin(ctx context.Context, req domain.LoginRequestRequest) (domain.LoginRequestResponse, error) {
@@ -162,7 +163,7 @@ func (m *WebAuthnManager) FinishLogin(ctx context.Context, req domain.LoginReque
 	if err != nil {
 		return domain.LoginResponse{}, fmt.Errorf("failed to marshal credentials data : %w", err)
 	}
-	_, err = m.db.VerifyUser(ctx, db.VerifyUserParams{
+	_, err = m.db.UpdateUserCredentials(ctx, db.UpdateUserCredentialsParams{
 		Credentials: json.RawMessage(by),
 		Email:       wu.user.Email,
 	})

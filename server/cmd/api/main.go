@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/NethermindEth/starknet.go/rpc"
 	"github.com/carbonable-labs/account/internal/db"
 	"github.com/carbonable-labs/account/internal/domain"
 	"github.com/carbonable-labs/account/internal/infrastructure"
@@ -15,6 +16,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+
+	ethrpc "github.com/ethereum/go-ethereum/rpc"
 )
 
 func main() {
@@ -28,16 +31,25 @@ func main() {
 	webAuthn, err := webauthn.New(wconfig)
 	if err != nil {
 		slog.Error("Failed to create WebAuthn instance", "err", err)
-		return
+		panic(err)
+	}
+
+	rpcClient, err := rpc.NewProvider(os.Getenv("RPC_URL"), ethrpc.WithHeader("x-apikey", os.Getenv("RPC_API_KEY")))
+	if err != nil {
+		slog.Error("failed dialing into rpc provider", "err", err)
+		panic(err)
 	}
 
 	pgdb, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
 		slog.Error("failed to connect to database", "err", err)
-		return
+		panic(err)
 	}
+
 	dbClient := db.New(pgdb)
 	authManager := infrastructure.NewWebAuthnManager(webAuthn, dbClient)
+
+	registrationHandler := domain.NewRegistrationHandler(authManager, infrastructure.NewStarknetAccountManager(rpcClient, dbClient))
 
 	e := echo.New()
 	e.Use(middleware.Logger())
@@ -52,7 +64,7 @@ func main() {
 		if err != nil {
 			return fmt.Errorf("failed to bind request: %w", err)
 		}
-		res, err := domain.HandleRegisterRequest(c.Request().Context(), authManager, req)
+		res, err := registrationHandler.HandleRegisterRequest(c.Request().Context(), req)
 		if err != nil {
 			return err
 		}
@@ -61,7 +73,7 @@ func main() {
 	})
 	account.POST("/register/:email", func(c echo.Context) error {
 		req := domain.RegisterRequest{Email: c.QueryParam("email")}
-		res, err := domain.HandleRegister(c.Request().Context(), authManager, req, c.Request())
+		res, err := registrationHandler.HandleRegister(c.Request().Context(), req, c.Request())
 		if err != nil {
 			return err
 		}

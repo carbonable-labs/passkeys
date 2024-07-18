@@ -80,6 +80,47 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	return i, err
 }
 
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, email, session, credentials, verified, last_login_at FROM users WHERE email = $1 OR id = $1
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByID, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Session,
+		&i.Credentials,
+		&i.Verified,
+		&i.LastLoginAt,
+	)
+	return i, err
+}
+
+const updateUserCredentials = `-- name: UpdateUserCredentials :one
+UPDATE users SET credentials = $1 WHERE email = $2 RETURNING id, email, session, credentials, verified, last_login_at
+`
+
+type UpdateUserCredentialsParams struct {
+	Credentials json.RawMessage
+	Email       string
+}
+
+func (q *Queries) UpdateUserCredentials(ctx context.Context, arg UpdateUserCredentialsParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserCredentials, arg.Credentials, arg.Email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Session,
+		&i.Credentials,
+		&i.Verified,
+		&i.LastLoginAt,
+	)
+	return i, err
+}
+
 const verifyUser = `-- name: VerifyUser :one
 UPDATE users SET verified = true, credentials = $1 WHERE email = $2 RETURNING id, email, session, credentials, verified, last_login_at
 `
