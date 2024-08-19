@@ -47,9 +47,10 @@ func main() {
 	}
 
 	dbClient := db.New(pgdb)
+	txManager := db.NewTxManager(pgdb, dbClient)
 	authManager := infrastructure.NewWebAuthnManager(webAuthn, dbClient)
 
-	registrationHandler := domain.NewRegistrationHandler(authManager, infrastructure.NewStarknetAccountManager(rpcClient, dbClient))
+	registrationHandler := domain.NewRegistrationHandler(authManager, infrastructure.NewStarknetAccountManager(rpcClient, dbClient, txManager))
 
 	e := echo.New()
 	e.Use(middleware.Logger())

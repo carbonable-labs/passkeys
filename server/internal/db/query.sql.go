@@ -8,6 +8,8 @@ package db
 import (
 	"context"
 	"encoding/json"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const authenticateUser = `-- name: AuthenticateUser :one
@@ -29,6 +31,105 @@ func (q *Queries) AuthenticateUser(ctx context.Context, arg AuthenticateUserPara
 		&i.Credentials,
 		&i.Verified,
 		&i.LastLoginAt,
+	)
+	return i, err
+}
+
+const createAccount = `-- name: CreateAccount :one
+INSERT INTO accounts (
+  id, user_id, data
+) VALUES (
+  $1, $2, $3
+)
+RETURNING id, user_id, address, data, created_at, updated_at
+`
+
+type CreateAccountParams struct {
+	ID     string
+	UserID string
+	Data   json.RawMessage
+}
+
+func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error) {
+	row := q.db.QueryRow(ctx, createAccount, arg.ID, arg.UserID, arg.Data)
+	var i Account
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Address,
+		&i.Data,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createAccountDeployment = `-- name: CreateAccountDeployment :one
+INSERT INTO account_deployments (
+  id, user_id, account_id, status
+) VALUES (
+  $1, $2, $3, $4
+)
+RETURNING id, user_id, account_id, status, created_at, updated_at
+`
+
+type CreateAccountDeploymentParams struct {
+	ID        string
+	UserID    string
+	AccountID string
+	Status    string
+}
+
+func (q *Queries) CreateAccountDeployment(ctx context.Context, arg CreateAccountDeploymentParams) (AccountDeployment, error) {
+	row := q.db.QueryRow(ctx, createAccountDeployment,
+		arg.ID,
+		arg.UserID,
+		arg.AccountID,
+		arg.Status,
+	)
+	var i AccountDeployment
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.AccountID,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createDeploymentLog = `-- name: CreateDeploymentLog :one
+INSERT INTO account_deployment_logs (
+  id, account_id, message, payload
+) VALUES (
+  $1, $2, $3, $4
+)
+RETURNING id, account_id, message, payload, created_at, updated_at
+`
+
+type CreateDeploymentLogParams struct {
+	ID        string
+	AccountID string
+	Message   string
+	Payload   json.RawMessage
+}
+
+func (q *Queries) CreateDeploymentLog(ctx context.Context, arg CreateDeploymentLogParams) (AccountDeploymentLog, error) {
+	row := q.db.QueryRow(ctx, createDeploymentLog,
+		arg.ID,
+		arg.AccountID,
+		arg.Message,
+		arg.Payload,
+	)
+	var i AccountDeploymentLog
+	err := row.Scan(
+		&i.ID,
+		&i.AccountID,
+		&i.Message,
+		&i.Payload,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -60,6 +161,73 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.LastLoginAt,
 	)
 	return i, err
+}
+
+const getUserAccount = `-- name: GetUserAccount :many
+SELECT a.id, a.user_id, a.address, a.data, a.created_at, a.updated_at, ad.id, ad.user_id, ad.account_id, ad.status, ad.created_at, ad.updated_at, dl.id, dl.account_id, dl.message, dl.payload, dl.created_at, dl.updated_at FROM accounts a 
+LEFT JOIN account_deployments ad ON a.id = ad.account_id 
+LEFT JOIN account_deployment_logs dl ON a.id = dl.account_id
+WHERE a.user_id = $1
+`
+
+type GetUserAccountRow struct {
+	ID          string
+	UserID      string
+	Address     pgtype.Text
+	Data        json.RawMessage
+	CreatedAt   pgtype.Timestamp
+	UpdatedAt   pgtype.Timestamp
+	ID_2        pgtype.Text
+	UserID_2    pgtype.Text
+	AccountID   pgtype.Text
+	Status      pgtype.Text
+	CreatedAt_2 pgtype.Timestamp
+	UpdatedAt_2 pgtype.Timestamp
+	ID_3        pgtype.Text
+	AccountID_2 pgtype.Text
+	Message     pgtype.Text
+	Payload     []byte
+	CreatedAt_3 pgtype.Timestamp
+	UpdatedAt_3 pgtype.Timestamp
+}
+
+func (q *Queries) GetUserAccount(ctx context.Context, userID string) ([]GetUserAccountRow, error) {
+	rows, err := q.db.Query(ctx, getUserAccount, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUserAccountRow
+	for rows.Next() {
+		var i GetUserAccountRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Address,
+			&i.Data,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ID_2,
+			&i.UserID_2,
+			&i.AccountID,
+			&i.Status,
+			&i.CreatedAt_2,
+			&i.UpdatedAt_2,
+			&i.ID_3,
+			&i.AccountID_2,
+			&i.Message,
+			&i.Payload,
+			&i.CreatedAt_3,
+			&i.UpdatedAt_3,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
@@ -96,6 +264,15 @@ func (q *Queries) GetUserByID(ctx context.Context, email string) (User, error) {
 		&i.LastLoginAt,
 	)
 	return i, err
+}
+
+const startAccountDeployment = `-- name: StartAccountDeployment :exec
+UPDATE account_deployments SET status = 'STARTED' WHERE account_id = $1
+`
+
+func (q *Queries) StartAccountDeployment(ctx context.Context, accountID string) error {
+	_, err := q.db.Exec(ctx, startAccountDeployment, accountID)
+	return err
 }
 
 const updateUserCredentials = `-- name: UpdateUserCredentials :one

@@ -1,3 +1,5 @@
-h1:NVK9sieTkrxTDyAheuX4ssau/3BCqf+j6jHLME7M81g=
+h1:hQ3SVw4i2oIschWY9loOYQJgE7gnq+bzAu3ITHQCbsc=
 20240717150819_create_schema.sql h1:LEgOkCprbL9UtHYOu/XQH8WZM/dWIPJMyl+3voX5oMw=
 20240717155116_add_last_logged_in.sql h1:pEAKs0jEKLRI4NFLdqO+hrjCrXCbF4dHVVldP4WJEH0=
+20240718130952_add_deployments.sql h1:LcPbwOU0XJbwKELvAyvBcHxP+Osa5HAR8+BA9rxZwfk=
+20240719131336_add_fk.sql h1:CgSoTgVr4ZurIp1dgjlG/LQOnd1HWUm04yAYlvs32s8=
